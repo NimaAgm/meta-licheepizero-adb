@@ -1,0 +1,27 @@
+#!/bin/sh
+
+case "$1" in
+    start)
+        
+        /usr/bin/android-gadget-setup  
+
+        /usr/bin/adbd &
+	sleep 1       
+	UDC=$(ls /sys/class/udc | head -n1)
+	echo "$UDC" > /sys/kernel/config/usb_gadget/adb/UDC
+
+        ;;
+
+    stop)
+        echo "" > /sys/kernel/config/usb_gadget/adb/UDC 2>/dev/null
+        killall adbd 2>/dev/null
+        ;;
+
+    restart)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+esac
+
+exit 0
