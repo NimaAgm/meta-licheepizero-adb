@@ -1,41 +1,69 @@
-This README file contains information on the contents of the meta-licheepiDockAdb layer.
+meta-licheepizero-adb
+=====================
 
-Please see the corresponding sections below for details.
+Yocto/OpenEmbedded meta-layer that enables **Android Debug Bridge (ADB) over USB**
+on the **Lichee Pi Zero** (Allwinner V3s SoC) and **Lichee Pi Zero Dock**.
+
+This layer provides the kernel configuration, device-tree patch, U-Boot config,
+and init script needed to make the board's USB port act as a peripheral running
+`adbd`, so a host PC can connect via `adb shell`, `adb push/pull`, etc.
 
 Dependencies
 ============
 
-  URI: <first dependency>
-  branch: <branch name>
+Required layers (kirkstone branch):
 
-  URI: <second dependency>
-  branch: <branch name>
+  URI: https://github.com/yoctoproject/poky.git
+  branch: kirkstone
 
-  .
-  .
-  .
+  URI: https://github.com/openembedded/meta-openembedded.git
+  branch: kirkstone
+  layers: meta-oe, meta-networking, meta-python
 
-Patches
-=======
+  URI: https://github.com/licheepizero/meta-licheepizero.git
+  branch: kirkstone
 
-Please submit any patches against the meta-licheepiDockAdb layer to the xxxx mailing list (xxxx@zzzz.org)
-and cc: the maintainer:
+  URI: https://github.com/openembedded/meta-qt5.git (optional, for Qt)
 
-Maintainer: XXX YYYYYY <xxx.yyyyyy@zzzzz.com>
-
-Table of Contents
-=================
-
-  I. Adding the meta-licheepiDockAdb layer to your build
- II. Misc
+Dependencies (runtime): `android-tools-adbd` and `android-tools-conf-configfs`
+from meta-openembedded/meta-oe provide the `adbd` binary and USB gadget setup
+script (`/usr/bin/android-gadget-setup`).
 
 
-I. Adding the meta-licheepiDockAdb layer to your build
-=================================================
+Adding the layer to your build
+==============================
 
-Run 'bitbake-layers add-layer meta-licheepiDockAdb'
+Run:
 
-II. Misc
-========
+  bitbake-layers add-layer meta-licheepizero-adb
 
---- replace with specific information about the meta-licheepiDockAdb layer ---
+In your `local.conf`, ensure the following are set:
+
+  ## Target machine (provided by meta-licheepizero)
+  MACHINE = "licheepizero-dock"
+
+  ## Use configfs-based ADB (not the deprecated g_android module)
+  PREFERRED_PROVIDER_android-tools-conf = "android-tools-conf-configfs"
+
+  ## Install the ADB daemon and init script
+  IMAGE_INSTALL:append = " android-tools-adbd adbd"
+
+
+Layer contents
+==============
+
+recipes-core/adbd/
+  Init script (`/etc/init.d/adbd`) that starts `adbd` at boot and binds the
+  USB gadget to the UDC controller.
+
+recipes-kernel/linux/
+  - `adb.cfg` — kernel config fragment enabling USB gadget, configfs, FunctionFS,
+    and the Allwinner V3s MUSB controller. Disables USB Ethernet gadget (conflicts
+    with ADB).
+  - `0001-v3s-force-usb-peripheral.patch` — DTS patch that sets USB OTG `dr_mode`
+    to `"peripheral"` instead of `"otg"`, forcing the port into gadget mode.
+
+recipes-uboot/u-boot/
+  - `bootdelay.cfg` — sets `CONFIG_BOOTDELAY=0` for headless boot (no serial
+    input required).
+
